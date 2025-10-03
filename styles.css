@@ -1,0 +1,18 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; line-height: 1.4; }
+.header { padding: 1rem; display: flex; gap: 1rem; align-items: center; justify-content: space-between; border-bottom: 1px solid #ddd; }
+.controls { display: flex; gap: .5rem; flex-wrap: wrap; }
+.layout { display: grid; gap: 1rem; padding: 1rem; grid-template-columns: 1fr 2fr; }
+.panel { border: 1px solid #eee; border-radius: 8px; padding: 1rem; background: #fff; }
+label { display: flex; flex-direction: column; gap: .25rem; margin-bottom: .5rem; }
+input, select, textarea, button { padding: .5rem; }
+button { cursor: pointer; border: 1px solid #ccc; border-radius: 6px; background: #fafafa; }
+button:hover { filter: brightness(0.97); }
+.form-actions { display: flex; gap: .5rem; margin-top: .5rem; }
+.secondary { background: #f3f3f3; }
+.list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .5rem; }
+.item { border: 1px solid #eee; border-radius: 6px; padding: .5rem .75rem; display: flex; justify-content: space-between; align-items: center; }
+.badge { font-size: .85rem; opacity: .7; margin-left: .5rem; }
+.msg { margin-top: .5rem; min-height: 1.2em; }
+.controls input[type="search"] { padding: .5rem; min-width: 180px; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
