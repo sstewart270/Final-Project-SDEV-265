@@ -1,14 +1,14 @@
 /* ========== Bistro Theme ========== */
 :root{
   /* Palette */
-  --bg: #f7f6f4;              /* page background */
-  --panel: #ffffff;           /* cards/panels */
-  --text: #1f2937;            /* primary text */
-  --muted: #6b7280;           /* secondary text */
+  --bg: #f7f6f4;
+  --panel: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
   --border: #e8e6e3;
   --primary: #7c2d12;         /* wine red */
   --primary-600:#6b2610;
-  --accent:#16a34a;           /* success green for badges */
+  --accent:#16a34a;
   --danger:#dc2626;
   --danger-600:#b91c1c;
 
@@ -34,12 +34,16 @@ body{
   background: rgba(255,255,255,.85);
   border-bottom:1px solid var(--border);
   padding: .9rem 1.2rem;
-  display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  display:flex; flex-direction:column; gap:.8rem;
 }
 .header h1{
-  margin:0;
-  font-size:1.25rem; letter-spacing:.2px; font-weight:700;
+  margin:0; font-size:1.25rem; letter-spacing:.2px; font-weight:700;
 }
+
+/* Tabs */
+.tabs { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.tab { border-radius:999px; padding:.45rem .9rem; border:1px solid var(--border); background:#fff; cursor:pointer; }
+.tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
 
 /* ===== Controls row ===== */
 .controls{display:flex; gap:.6rem; flex-wrap:wrap; align-items:center}
@@ -147,14 +151,51 @@ label small{ color:var(--muted) }
   margin-left:.5rem;
 }
 
-/* ===== Utilities ===== */
+/* ===== Utilities & Print ===== */
 .hidden{ display:none }
+.muted { color:var(--muted) }
 
-/* ===== Print-friendly ===== */
 @media print{
-  .header, .controls, .form-actions, #newBtn, #exportBtn { display:none !important; }
+  .header, .controls, .form-actions, #newBtn, #exportBtn, #exportBtn2 { display:none !important; }
   body{ background:#fff }
   .layout{ max-width:100%; margin:0; padding:0 }
   .panel{ box-shadow:none; border-color:#cfcfcf }
   .item{ break-inside: avoid }
+}
+
+/* ===== About Page Photos ===== */
+.about-photos {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 1.2rem;
+}
+
+.about-photos figure {
+  text-align: center;
+  max-width: 340px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.about-photos img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  border: 1px solid var(--border);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.about-photos figcaption {
+  margin-top: 0.45rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+/* Hover Zoom Effect */
+.about-photos figure:hover img {
+  transform: scale(1.04);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
 }

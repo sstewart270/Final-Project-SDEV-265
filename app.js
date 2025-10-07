@@ -1,101 +1,118 @@
 // ===============================
-// Restaurant Reservation System
+// Restaurant Reservation System (OOP version)
 // ===============================
 
-// Simple prototype store using localStorage
-const KEY = "reservations:v1";
-const MAX_TABLES = 20; // Capacity per day (change if needed)
-
-// Store object handles saving/loading from localStorage
-const Store = {
-  all() {
-    return JSON.parse(localStorage.getItem(KEY) || "[]");
-  },
-  save(list) {
-    localStorage.setItem(KEY, JSON.stringify(list));
-  },
-  byDate(dateStr) {
-    return this.all()
-      .filter(r => r.date === dateStr)
-      .sort((a, b) => a.start.localeCompare(b.start));
-  },
-};
-
-// Time slot configuration (10:00 → 22:00 in 30-min increments)
-const OPEN_MINUTES = 10 * 60;
-const CLOSE_MINUTES = 22 * 60;
-
-function minutesToHHMM(mins) {
-  const h = String(Math.floor(mins / 60)).padStart(2, "0");
-  const m = String(mins % 60).padStart(2, "0");
-  return `${h}:${m}`;
-}
-
-function format12(hhmm) {
-  let [h, m] = hhmm.split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
-  h = ((h + 11) % 12) + 1;
-  return `${h}:${String(m).padStart(2, "0")} ${ampm}`;
-}
-
-function populateTimes(selectEl) {
-  selectEl.innerHTML = "";
-  for (let t = OPEN_MINUTES; t <= CLOSE_MINUTES; t += 30) {
-    const value = minutesToHHMM(t);
-    const opt = document.createElement("option");
-    opt.value = value;
-    opt.textContent = format12(value);
-    selectEl.appendChild(opt);
+// ---- Model ----
+class Reservation {
+  constructor({ id, name, phone="", email="", partySize=1, date, start, notes="" }) {
+    this.id = id;
+    this.name = name;
+    this.phone = phone;
+    this.email = email;
+    this.partySize = Number(partySize || 1);
+    this.date = date;
+    this.start = start;   // "HH:MM" 24h
+    this.notes = notes;
   }
 }
 
-// ===============================
-// Main Application
-// ===============================
-window.addEventListener("DOMContentLoaded", () => {
-  const datePicker = document.getElementById("datePicker");
-  const listEl = document.getElementById("list");
-  const form = document.getElementById("resForm");
-  const formMsg = document.getElementById("formMsg");
-  const formTitle = document.getElementById("formTitle");
-  const cancelEditBtn = document.getElementById("cancelEditBtn");
-  const newBtn = document.getElementById("newBtn");
-  const startSelect = document.getElementById("start");
-  const searchInput = document.getElementById("searchInput");
-  const exportBtn = document.getElementById("exportBtn");
+// ---- Store (localStorage) ----
+class ReservationStore {
+  constructor(key = "reservations:v1") { this.key = key; }
+  all() {
+    return JSON.parse(localStorage.getItem(this.key) || "[]").map(r => new Reservation(r));
+  }
+  save(list) {
+    localStorage.setItem(this.key, JSON.stringify(list));
+  }
+  byDate(dateStr) {
+    return this.all()
+      .filter(r => r.date === dateStr)
+      .sort((a,b) => a.start.localeCompare(b.start));
+  }
+}
 
-  let searchTerm = "";
+// ---- UI Controller ----
+class AppUI {
+  constructor(store, options = {}) {
+    this.store = store;
+    this.MAX_TABLES = options.maxTables ?? 20;   // capacity denominator
+    this.OPEN_MINUTES = options.openMinutes ?? (10 * 60);
+    this.CLOSE_MINUTES = options.closeMinutes ?? (22 * 60);
 
-  const today = new Date().toISOString().slice(0, 10);
-  datePicker.value = today;
-  form.date.value = today;
-  populateTimes(startSelect);
-  if (startSelect.options.length) startSelect.value = startSelect.options[0].value;
+    // DOM references
+    this.pageTitle = null;
+    this.tabs = null;
+    this.views = null;
 
-  // ===============================
-  // Render Reservation List
-  // ===============================
-  function render() {
-    const day = datePicker.value;
-    let items = Store.byDate(day);
+    this.datePicker = null;
+    this.listEl = null;
+    this.form = null;
+    this.formMsg = null;
+    this.formTitle = null;
+    this.cancelEditBtn = null;
+    this.newBtn = null;
+    this.startSelect = null;
+    this.searchInput = null;
+    this.exportBtn = null;
+    this.exportBtn2 = null;
+    this.printBtn = null;
 
-    if (searchTerm) {
-      items = items.filter(r => (r.name || "").toLowerCase().includes(searchTerm));
+    this.searchTerm = "";
+    this.today = new Date().toISOString().slice(0,10);
+  }
+
+  // --- helpers ---
+  minutesToHHMM(mins) {
+    const h = String(Math.floor(mins / 60)).padStart(2,"0");
+    const m = String(mins % 60).padStart(2,"0");
+    return `${h}:${m}`;
+  }
+  format12(hhmm) {
+    let [h, m] = hhmm.split(":").map(Number);
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = ((h + 11) % 12) + 1;
+    return `${h}:${String(m).padStart(2,"0")} ${ampm}`;
+  }
+  populateTimes(selectEl) {
+    selectEl.innerHTML = "";
+    for (let t = this.OPEN_MINUTES; t <= this.CLOSE_MINUTES; t += 30) {
+      const v = this.minutesToHHMM(t);
+      selectEl.appendChild(new Option(this.format12(v), v));
+    }
+  }
+  uuid() {
+    return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+  }
+  clearForm() {
+    this.form.reset();
+    this.form.resId.value = "";
+    this.form.date.value = this.datePicker.value;
+    if (this.startSelect.options.length) this.startSelect.value = this.startSelect.options[0].value;
+    this.formTitle.textContent = "Add Reservation";
+    this.formMsg.textContent = "";
+  }
+
+  // --- rendering ---
+  render() {
+    const day = this.datePicker.value;
+    let items = this.store.byDate(day);
+
+    if (this.searchTerm) {
+      items = items.filter(r => (r.name || "").toLowerCase().includes(this.searchTerm));
     }
 
-    listEl.innerHTML = "";
-    if (items.length === 0) {
+    this.listEl.innerHTML = "";
+    if (!items.length) {
       const li = document.createElement("li");
       li.textContent = "No reservations yet.";
       li.className = "item";
-      listEl.appendChild(li);
+      this.listEl.appendChild(li);
       return;
     }
 
-    // Sort by time for consistent display
-    items.sort((a, b) => a.start.localeCompare(b.start));
+    items.sort((a,b) => a.start.localeCompare(b.start));
 
-    // Display each reservation with running count
     items.forEach((r, i) => {
       const li = document.createElement("li");
       li.className = "item";
@@ -103,121 +120,38 @@ window.addEventListener("DOMContentLoaded", () => {
 
       li.innerHTML = `
         <div>
-          <strong>${format12(r.start)}</strong> • ${r.name}
-          <span class="badge">(Party ${r.partySize || 1} • Reservation ${reservationNumber}/${MAX_TABLES})</span>
+          <strong>${this.format12(r.start)}</strong> • ${r.name}
+          <span class="badge">(Party ${r.partySize || 1} • Reservation ${reservationNumber}/${this.MAX_TABLES})</span>
         </div>
         <div>
           <button data-id="${r.id}" class="edit">Edit</button>
           <button data-id="${r.id}" class="danger delete">Delete</button>
         </div>
       `;
-      listEl.appendChild(li);
+      this.listEl.appendChild(li);
     });
   }
 
-  // ===============================
-  // Helpers
-  // ===============================
-  function uuid() {
-    return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+  // --- navigation ---
+  showView(id) {
+    this.views.forEach(v => v.classList.add("hidden"));
+    document.getElementById(id).classList.remove("hidden");
+    this.tabs.forEach(btn => btn.classList.toggle("active", btn.dataset.view === id));
+    const map = { reservationsView: "Reservations", reportsView: "Reports", aboutView: "About", helpView: "Help" };
+    this.pageTitle.textContent = map[id] || "Reservations";
+    if (id === "reservationsView") this.render();
   }
 
-  function clearForm() {
-    form.reset();
-    form.resId.value = "";
-    form.date.value = datePicker.value;
-    if (startSelect.options.length) startSelect.value = startSelect.options[0].value;
-    formTitle.textContent = "Add Reservation";
-    formMsg.textContent = "";
-  }
-
-  // ===============================
-  // Event Listeners
-  // ===============================
-  datePicker.addEventListener("change", () => {
-    form.date.value = datePicker.value;
-    render();
-  });
-
-  newBtn.addEventListener("click", clearForm);
-  cancelEditBtn.addEventListener("click", clearForm);
-
-  // Delete or edit reservation
-  listEl.addEventListener("click", e => {
-    if (e.target.matches(".delete")) {
-      const id = e.target.dataset.id;
-      const all = Store.all().filter(r => r.id !== id);
-      Store.save(all);
-      render();
-    }
-
-    if (e.target.matches(".edit")) {
-      const id = e.target.dataset.id;
-      const r = Store.all().find(x => x.id === id);
-      if (!r) return;
-
-      formTitle.textContent = "Edit Reservation";
-      form.resId.value = r.id;
-      form.name.value = r.name;
-      form.phone.value = r.phone || "";
-      form.email.value = r.email || "";
-      form.partySize.value = r.partySize || 1;
-      form.date.value = r.date;
-
-      const has = [...startSelect.options].some(o => o.value === r.start);
-      if (!has) startSelect.add(new Option(format12(r.start), r.start), 0);
-      startSelect.value = r.start;
-
-      form.notes.value = r.notes || "";
-      formMsg.textContent = "";
-    }
-  });
-
-  // Form submission (add or update)
-  form.addEventListener("submit", e => {
-    e.preventDefault();
-    const res = {
-      id: form.resId.value || uuid(),
-      name: form.name.value.trim(),
-      phone: form.phone.value.trim(),
-      email: form.email.value.trim(),
-      partySize: Number(form.partySize.value || 1),
-      date: form.date.value,
-      start: startSelect.value,
-      notes: form.notes.value.trim(),
-    };
-
-    if (!res.name || !res.date || !res.start) {
-      formMsg.textContent = "Please fill required fields.";
-      return;
-    }
-
-    const all = Store.all();
-    const countAtSlot = all.filter(r => r.date === res.date && r.start === res.start && r.id !== res.id).length;
-    if (countAtSlot >= MAX_TABLES) {
-      formMsg.textContent = `That time slot is full (max ${MAX_TABLES} reservations). Choose another time.`;
-      return;
-    }
-
-    const idx = all.findIndex(r => r.id === res.id);
-    if (idx >= 0) all[idx] = res;
-    else all.push(res);
-
-    Store.save(all);
-    formMsg.textContent = "Saved.";
-    render();
-  });
-
-  // Export reservations to CSV
-  exportBtn.addEventListener("click", () => {
-    const day = datePicker.value;
-    const items = Store.byDate(day);
+  // --- CSV export ---
+  exportCSV() {
+    const day = this.datePicker.value;
+    const items = this.store.byDate(day);
     if (!items.length) {
       alert("No reservations to export.");
       return;
     }
-    const header = ["name", "phone", "email", "partySize", "date", "start", "notes"];
-    const escape = (s = "") => `"${String(s).replace(/"/g, '""')}"`;
+    const header = ["name","phone","email","partySize","date","start","notes"];
+    const escape = (s="") => `"${String(s).replace(/"/g,'""')}"`;
     const lines = items.map(r => header.map(k => escape(r[k])).join(","));
     const csv = header.join(",") + "\n" + lines.join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -227,32 +161,158 @@ window.addEventListener("DOMContentLoaded", () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  });
-
-  // Live search
-  searchInput.addEventListener("input", () => {
-    searchTerm = searchInput.value.trim().toLowerCase();
-    render();
-  });
-
-  // Initialize default sample data
-  if (!Store.all().length) {
-    Store.save([
-      {
-        id: uuid(),
-        name: "Sample Customer",
-        phone: "555-555-5555",
-        email: "sample@email.com",
-        partySize: 2,
-        date: today,
-        start: "18:00",
-        notes: "",
-      },
-    ]);
   }
 
-  // Initial render
-  render();
+  // --- event bindings ---
+  bindEvents() {
+    // Date change
+    this.datePicker.addEventListener("change", () => {
+      this.form.date.value = this.datePicker.value;
+      this.render();
+    });
+
+    // New / Cancel
+    this.newBtn.addEventListener("click", () => this.clearForm());
+    this.cancelEditBtn.addEventListener("click", () => this.clearForm());
+
+    // Edit / Delete
+    this.listEl.addEventListener("click", e => {
+      if (e.target.matches(".delete")) {
+        const id = e.target.dataset.id;
+        const all = this.store.all().filter(r => r.id !== id);
+        this.store.save(all);
+        this.render();
+      }
+
+      if (e.target.matches(".edit")) {
+        const id = e.target.dataset.id;
+        const r = this.store.all().find(x => x.id === id);
+        if (!r) return;
+
+        this.formTitle.textContent = "Edit Reservation";
+        this.form.resId.value = r.id;
+        this.form.name.value = r.name;
+        this.form.phone.value = r.phone || "";
+        this.form.email.value = r.email || "";
+        this.form.partySize.value = r.partySize || 1;
+        this.form.date.value = r.date;
+
+        const has = [...this.startSelect.options].some(o => o.value === r.start);
+        if (!has) this.startSelect.add(new Option(this.format12(r.start), r.start), 0);
+        this.startSelect.value = r.start;
+
+        this.form.notes.value = r.notes || "";
+        this.formMsg.textContent = "";
+      }
+    });
+
+    // Save (create/update)
+    this.form.addEventListener("submit", e => {
+      e.preventDefault();
+      const res = new Reservation({
+        id: this.form.resId.value || this.uuid(),
+        name: this.form.name.value.trim(),
+        phone: this.form.phone.value.trim(),
+        email: this.form.email.value.trim(),
+        partySize: Number(this.form.partySize.value || 1),
+        date: this.form.date.value,
+        start: this.startSelect.value,
+        notes: this.form.notes.value.trim()
+      });
+
+      if (!res.name || !res.date || !res.start) {
+        this.formMsg.textContent = "Please fill required fields.";
+        return;
+      }
+
+      // capacity check per time slot
+      const all = this.store.all();
+      const countAtSlot = all.filter(r => r.date === res.date && r.start === res.start && r.id !== res.id).length;
+      if (countAtSlot >= this.MAX_TABLES) {
+        this.formMsg.textContent = `That time slot is full (max ${this.MAX_TABLES} reservations). Choose another time.`;
+        return;
+      }
+
+      const idx = all.findIndex(r => r.id === res.id);
+      if (idx >= 0) all[idx] = res; else all.push(res);
+      this.store.save(all);
+
+      this.formMsg.textContent = "Saved.";
+      this.render();
+    });
+
+    // Search
+    this.searchInput.addEventListener("input", () => {
+      this.searchTerm = this.searchInput.value.trim().toLowerCase();
+      this.render();
+    });
+
+    // Export (header + reports view)
+    this.exportBtn.addEventListener("click", () => this.exportCSV());
+    if (this.exportBtn2) this.exportBtn2.addEventListener("click", () => this.exportBtn.click());
+
+    // Print (reports)
+    if (this.printBtn) this.printBtn.addEventListener("click", () => window.print());
+
+    // Tabs
+    this.tabs.forEach(btn => {
+      btn.addEventListener("click", () => this.showView(btn.dataset.view));
+    });
+  }
+
+  // --- init ---
+  init() {
+    // cache DOM
+    this.pageTitle     = document.getElementById("pageTitle");
+    this.tabs          = document.querySelectorAll(".tab");
+    this.views         = ["reservationsView","reportsView","aboutView","helpView"].map(id => document.getElementById(id));
+
+    this.datePicker    = document.getElementById("datePicker");
+    this.listEl        = document.getElementById("list");
+    this.form          = document.getElementById("resForm");
+    this.formMsg       = document.getElementById("formMsg");
+    this.formTitle     = document.getElementById("formTitle");
+    this.cancelEditBtn = document.getElementById("cancelEditBtn");
+    this.newBtn        = document.getElementById("newBtn");
+    this.startSelect   = document.getElementById("start");
+    this.searchInput   = document.getElementById("searchInput");
+    this.exportBtn     = document.getElementById("exportBtn");
+    this.exportBtn2    = document.getElementById("exportBtn2");
+    this.printBtn      = document.getElementById("printBtn");
+
+    // defaults
+    this.datePicker.value = this.today;
+    this.form.date.value  = this.today;
+    this.populateTimes(this.startSelect);
+    if (this.startSelect.options.length) this.startSelect.value = this.startSelect.options[0].value;
+
+    // seed sample if empty
+    if (!this.store.all().length) {
+      this.store.save([
+        new Reservation({
+          id: this.uuid(),
+          name: "Sample Customer",
+          phone: "555-555-5555",
+          email: "sample@email.com",
+          partySize: 2,
+          date: this.today,
+          start: "18:00",
+          notes: ""
+        })
+      ]);
+    }
+
+    // bind + first render + default view
+    this.bindEvents();
+    this.showView("reservationsView");
+  }
+}
+
+// ---- Boot ----
+window.addEventListener("DOMContentLoaded", () => {
+  const store = new ReservationStore();
+  const app = new AppUI(store, { maxTables: 20 });
+  app.init();
 });
 
 

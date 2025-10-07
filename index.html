@@ -1,16 +1,27 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>Restaurant Reservation System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <header class="header">
-    <h1>Reservations</h1>
+    <h1 id="pageTitle">Reservations</h1>
+
+    <!-- Tabs / Navigation -->
+    <nav class="tabs" role="tablist" aria-label="App sections">
+      <button class="tab active" data-view="reservationsView" role="tab" aria-selected="true">Reservations</button>
+      <button class="tab" data-view="reportsView" role="tab" aria-selected="false">Reports</button>
+      <button class="tab" data-view="aboutView" role="tab" aria-selected="false">About</button>
+      <button class="tab" data-view="helpView" role="tab" aria-selected="false">Help</button>
+    </nav>
+
     <div class="controls">
       <input type="date" id="datePicker" />
       <input type="search" id="searchInput" placeholder="Search name..." />
@@ -19,7 +30,8 @@
     </div>
   </header>
 
-  <main class="layout">
+  <!-- View 1: Reservations -->
+  <main id="reservationsView" class="layout" role="tabpanel">
     <section class="panel">
       <h2 id="formTitle">Add Reservation</h2>
       <form id="resForm">
@@ -29,11 +41,9 @@
         <label>Email <input id="email" type="email" /></label>
         <label>Party Size <input id="partySize" type="number" min="1" value="1" /></label>
         <label>Date <input id="date" type="date" required /></label>
-
         <label>Start Time
           <select id="start" required></select>
         </label>
-
         <label>Notes <textarea id="notes"></textarea></label>
         <div class="form-actions">
           <button type="submit" id="saveBtn">Save</button>
@@ -46,6 +56,62 @@
     <section class="panel">
       <h2>Day Schedule</h2>
       <ul id="list" class="list" aria-live="polite"></ul>
+    </section>
+  </main>
+
+  <!-- View 2: Reports -->
+  <main id="reportsView" class="layout hidden" role="tabpanel">
+    <section class="panel">
+      <h2>Reports & Printing</h2>
+      <p>Export or print the selected day’s reservations.</p>
+      <div class="form-actions">
+        <button id="exportBtn2">Export CSV</button>
+        <button id="printBtn" class="secondary">Print Day Schedule</button>
+      </div>
+      <small class="muted">Use the date picker in the header to choose a day.</small>
+    </section>
+  </main>
+
+  <!-- View 3: About -->
+  <main id="aboutView" class="layout hidden" role="tabpanel">
+    <section class="panel">
+      <h2>About & Hours</h2>
+      <ul>
+        <li><strong>Hours:</strong> Mon–Sun, 10:00 AM – 10:00 PM</li>
+        <li><strong>Phone:</strong> (555) 555-5555</li>
+        <li><strong>Email:</strong> reservations@greenbistro.example</li>
+        <li><strong>Address:</strong> 123 Main St, Your City</li>
+      </ul>
+      <p>
+        This reservation system allows restaurants to efficiently manage daily bookings,
+        view schedules, and maintain customer records with a clean, modern interface.
+      </p>
+
+      <div class="about-photos">
+        <figure>
+          <img src="images/dining-room.jpg" alt="Restaurant dining room">
+          <figcaption>Inviting dining area ready for guests.</figcaption>
+        </figure>
+
+        <figure>
+          <img src="images/reserved.jpg" alt="Reserved table sign">
+          <figcaption>Reservations made simple and organized.</figcaption>
+        </figure>
+      </div>
+    </section>
+  </main>
+
+  <!-- View 4: Help -->
+  <main id="helpView" class="layout hidden" role="tabpanel">
+    <section class="panel">
+      <h2>Help</h2>
+      <ol>
+        <li>Select a <em>Date</em> in the header.</li>
+        <li>Click <em>New Reservation</em>, fill the form, and <em>Save</em>.</li>
+        <li>Use the <em>Day Schedule</em> to <em>Edit</em> or <em>Delete</em> reservations.</li>
+        <li>Use <em>Export CSV</em> or <em>Print</em> for shift handoffs.</li>
+      </ol>
+      <p class="muted">Capacity limits per time slot are configurable in <code>app.js</code>.</p>
     </section>
   </main>
 
