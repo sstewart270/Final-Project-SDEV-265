@@ -1,7 +1,12 @@
+// ===============================
+// Restaurant Reservation System
+// ===============================
+
 // Simple prototype store using localStorage
 const KEY = "reservations:v1";
-const MAX_TABLES = 10; // capacity per time slot
+const MAX_TABLES = 20; // Capacity per day (change if needed)
 
+// Store object handles saving/loading from localStorage
 const Store = {
   all() {
     return JSON.parse(localStorage.getItem(KEY) || "[]");
@@ -10,12 +15,13 @@ const Store = {
     localStorage.setItem(KEY, JSON.stringify(list));
   },
   byDate(dateStr) {
-    return this.all().filter(r => r.date === dateStr)
-      .sort((a,b) => a.start.localeCompare(b.start));
-  }
+    return this.all()
+      .filter(r => r.date === dateStr)
+      .sort((a, b) => a.start.localeCompare(b.start));
+  },
 };
 
-// Time slot config (10:00 → 22:00 in 30-min steps)
+// Time slot configuration (10:00 → 22:00 in 30-min increments)
 const OPEN_MINUTES = 10 * 60;
 const CLOSE_MINUTES = 22 * 60;
 
@@ -24,12 +30,14 @@ function minutesToHHMM(mins) {
   const m = String(mins % 60).padStart(2, "0");
   return `${h}:${m}`;
 }
+
 function format12(hhmm) {
   let [h, m] = hhmm.split(":").map(Number);
   const ampm = h >= 12 ? "PM" : "AM";
   h = ((h + 11) % 12) + 1;
   return `${h}:${String(m).padStart(2, "0")} ${ampm}`;
 }
+
 function populateTimes(selectEl) {
   selectEl.innerHTML = "";
   for (let t = OPEN_MINUTES; t <= CLOSE_MINUTES; t += 30) {
@@ -41,6 +49,9 @@ function populateTimes(selectEl) {
   }
 }
 
+// ===============================
+// Main Application
+// ===============================
 window.addEventListener("DOMContentLoaded", () => {
   const datePicker = document.getElementById("datePicker");
   const listEl = document.getElementById("list");
@@ -55,16 +66,15 @@ window.addEventListener("DOMContentLoaded", () => {
 
   let searchTerm = "";
 
-  const today = new Date().toISOString().slice(0,10);
+  const today = new Date().toISOString().slice(0, 10);
   datePicker.value = today;
   form.date.value = today;
   populateTimes(startSelect);
   if (startSelect.options.length) startSelect.value = startSelect.options[0].value;
 
-  function countForSlot(items, start) {
-    return items.filter(x => x.start === start).length;
-  }
-
+  // ===============================
+  // Render Reservation List
+  // ===============================
   function render() {
     const day = datePicker.value;
     let items = Store.byDate(day);
@@ -81,14 +91,20 @@ window.addEventListener("DOMContentLoaded", () => {
       listEl.appendChild(li);
       return;
     }
-    for (const r of items) {
+
+    // Sort by time for consistent display
+    items.sort((a, b) => a.start.localeCompare(b.start));
+
+    // Display each reservation with running count
+    items.forEach((r, i) => {
       const li = document.createElement("li");
       li.className = "item";
-      const slotCount = countForSlot(items, r.start);
+      const reservationNumber = i + 1;
+
       li.innerHTML = `
         <div>
           <strong>${format12(r.start)}</strong> • ${r.name}
-          <span class="badge">(Party ${r.partySize || 1} • Slot ${slotCount}/${MAX_TABLES})</span>
+          <span class="badge">(Party ${r.partySize || 1} • Reservation ${reservationNumber}/${MAX_TABLES})</span>
         </div>
         <div>
           <button data-id="${r.id}" class="edit">Edit</button>
@@ -96,10 +112,16 @@ window.addEventListener("DOMContentLoaded", () => {
         </div>
       `;
       listEl.appendChild(li);
-    }
+    });
   }
 
-  function uuid() { return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2); }
+  // ===============================
+  // Helpers
+  // ===============================
+  function uuid() {
+    return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+  }
+
   function clearForm() {
     form.reset();
     form.resId.value = "";
@@ -109,6 +131,9 @@ window.addEventListener("DOMContentLoaded", () => {
     formMsg.textContent = "";
   }
 
+  // ===============================
+  // Event Listeners
+  // ===============================
   datePicker.addEventListener("change", () => {
     form.date.value = datePicker.value;
     render();
@@ -117,17 +142,20 @@ window.addEventListener("DOMContentLoaded", () => {
   newBtn.addEventListener("click", clearForm);
   cancelEditBtn.addEventListener("click", clearForm);
 
-  listEl.addEventListener("click", (e) => {
+  // Delete or edit reservation
+  listEl.addEventListener("click", e => {
     if (e.target.matches(".delete")) {
       const id = e.target.dataset.id;
       const all = Store.all().filter(r => r.id !== id);
       Store.save(all);
       render();
     }
+
     if (e.target.matches(".edit")) {
       const id = e.target.dataset.id;
       const r = Store.all().find(x => x.id === id);
       if (!r) return;
+
       formTitle.textContent = "Edit Reservation";
       form.resId.value = r.id;
       form.name.value = r.name;
@@ -135,15 +163,18 @@ window.addEventListener("DOMContentLoaded", () => {
       form.email.value = r.email || "";
       form.partySize.value = r.partySize || 1;
       form.date.value = r.date;
+
       const has = [...startSelect.options].some(o => o.value === r.start);
       if (!has) startSelect.add(new Option(format12(r.start), r.start), 0);
       startSelect.value = r.start;
+
       form.notes.value = r.notes || "";
       formMsg.textContent = "";
     }
   });
 
-  form.addEventListener("submit", (e) => {
+  // Form submission (add or update)
+  form.addEventListener("submit", e => {
     e.preventDefault();
     const res = {
       id: form.resId.value || uuid(),
@@ -153,7 +184,7 @@ window.addEventListener("DOMContentLoaded", () => {
       partySize: Number(form.partySize.value || 1),
       date: form.date.value,
       start: startSelect.value,
-      notes: form.notes.value.trim()
+      notes: form.notes.value.trim(),
     };
 
     if (!res.name || !res.date || !res.start) {
@@ -162,22 +193,22 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     const all = Store.all();
-
-    // capacity check
     const countAtSlot = all.filter(r => r.date === res.date && r.start === res.start && r.id !== res.id).length;
     if (countAtSlot >= MAX_TABLES) {
-      formMsg.textContent = `That time slot is full (max ${MAX_TABLES} tables). Choose another time.`;
+      formMsg.textContent = `That time slot is full (max ${MAX_TABLES} reservations). Choose another time.`;
       return;
     }
 
     const idx = all.findIndex(r => r.id === res.id);
-    if (idx >= 0) all[idx] = res; else all.push(res);
+    if (idx >= 0) all[idx] = res;
+    else all.push(res);
+
     Store.save(all);
     formMsg.textContent = "Saved.";
     render();
   });
 
-  // Export CSV
+  // Export reservations to CSV
   exportBtn.addEventListener("click", () => {
     const day = datePicker.value;
     const items = Store.byDate(day);
@@ -185,8 +216,8 @@ window.addEventListener("DOMContentLoaded", () => {
       alert("No reservations to export.");
       return;
     }
-    const header = ["name","phone","email","partySize","date","start","notes"];
-    const escape = (s="") => `"${String(s).replace(/"/g,'""')}"`;
+    const header = ["name", "phone", "email", "partySize", "date", "start", "notes"];
+    const escape = (s = "") => `"${String(s).replace(/"/g, '""')}"`;
     const lines = items.map(r => header.map(k => escape(r[k])).join(","));
     const csv = header.join(",") + "\n" + lines.join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -198,17 +229,29 @@ window.addEventListener("DOMContentLoaded", () => {
     document.body.removeChild(link);
   });
 
-  // Search filter
+  // Live search
   searchInput.addEventListener("input", () => {
     searchTerm = searchInput.value.trim().toLowerCase();
     render();
   });
 
+  // Initialize default sample data
   if (!Store.all().length) {
     Store.save([
-      { id: uuid(), name: "Sample Customer", phone: "555-555-5555", email: "sample@email.com", partySize: 2, date: today, start: "18:00", notes: "" }
+      {
+        id: uuid(),
+        name: "Sample Customer",
+        phone: "555-555-5555",
+        email: "sample@email.com",
+        partySize: 2,
+        date: today,
+        start: "18:00",
+        notes: "",
+      },
     ]);
   }
+
+  // Initial render
   render();
 });
 
